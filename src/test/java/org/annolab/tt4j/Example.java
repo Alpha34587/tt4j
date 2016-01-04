@@ -24,10 +24,11 @@ public class Example
 	{
 		// Point TT4J to the TreeTagger installation directory. The executable is expected
 		// in the "bin" subdirectory - in this example at "/opt/treetagger/bin/tree-tagger"
-		System.setProperty("treetagger.home", "/opt/treetagger");
+		System.setProperty("treetagger.home", "/home/smeoni/partage-Termith/scripts/logiciels/treetagger/");
 		TreeTaggerWrapper<String> tt = new TreeTaggerWrapper<String>();
 		try {
-			tt.setModel("/opt/treetagger/models/english.par:iso8859-1");
+			tt.setModel("french-utf8.par:utf-8");
+			tt.setArguments(new String[]{"-lemma","-token","-no-unknown"});
 			tt.setHandler(new TokenHandler<String>()
 			{
 				public void token(String token, String pos, String lemma)
@@ -35,7 +36,7 @@ public class Example
 					System.out.println(token + "\t" + pos + "\t" + lemma);
 				}
 			});
-			tt.process(new String[] { "This", "is", "a", "test", "." });
+			tt.process(new String[] { "Je", "suis", "une", "pomme"});
 		}
 		finally {
 			tt.destroy();

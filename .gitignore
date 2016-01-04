@@ -1,4 +1,15 @@
+/.idea
+/.idea/encodings.xml
+/.idea/copyright
+/src/main/java/org/annolab/tt4j/test.java
+/.idea/workspace.xml
+/.idea/misc.xml
+/.idea/compiler.xml
+/.idea/modules.xml
+/.idea/vcs.xml
+/.idea/.name
 /target/
 .settings/
 .classpath
 .project
+/org.annolab.tt4j.iml

@@ -637,6 +637,7 @@ class TreeTaggerWrapper<O>
 		}
 		finally {
 			gob.done();
+			stopTaggerProcess();
 		}
 
 //		info("Parsed " + count + " pos segments");
@@ -788,7 +789,7 @@ class TreeTaggerWrapper<O>
     /**
      * Kill tagger process.
      */
-    private
+    public
     void stopTaggerProcess()
     {
     	if (_proc != null) {
@@ -950,10 +951,10 @@ class TreeTaggerWrapper<O>
     	{
     		try {
 	    		String outRecord;
-	    		boolean inText = false;
-	    		while (tokenIterator.hasNext()) {
-	    			outRecord = in.readLine();
+	    		while (true) {
 
+
+					outRecord= in.readLine();
 	    			if (outRecord == null) {
 						throw new IOException(
 								"The TreeTagger process has died:\n" + getStatus() +
@@ -963,63 +964,65 @@ class TreeTaggerWrapper<O>
 	    			}
 
 	    			outRecord = outRecord.trim();
-	    				// Get word and tag
-	    				String outToken = null;
 
-						// Sometimes TT seems to return odd lines, e.g. containing only a tag but no
-						// token and no lemma. For such cases we only return the original token we
-						// got, but lemma and pos will be null.
-	    				String fields1[] = RE_TAB.split(outRecord, _probabilityThreshold != null ? 0 : 2);
-	    				if (fields1.length > 0) {
-	    					outToken = fields1[0];
-	    				}
-	    				
+
 	                    // Record what we have sent - getNextToken uses this when throwing an
                         // exception.
-                        _lastOutToken.add(outToken);
-                        _lastOutRecord = outRecord;
+						if (tokenIterator.hasNext()) {
+							// Get word and tag
+							String outToken = null;
+							// Sometimes TT seems to return odd lines, e.g. containing only a tag but no
+							// token and no lemma. For such cases we only return the original token we
+							// got, but lemma and pos will be null.
+							String fields1[] = RE_TAB.split(outRecord, _probabilityThreshold != null ? 0 : 2);
+							if (fields1.length > 0) {
+								outToken = fields1[0];
+							}
+							_lastOutToken.add(outToken);
+							_lastOutRecord = outRecord;
+							// Get original token segment
+							O inToken = getNextToken(outToken);
 
-                        // Get original token segment
-                        O inToken = getNextToken(outToken);
+							// If a pos and lemma is present, return them.
+							for (int n = 1; n < fields1.length; n++) {
+								String fields2[] = _probabilityThreshold != null ? RE_WHITESPACE
+										.split(fields1[n]) : RE_TAB.split(fields1[n]);
+								try {
+									String posTag = fields2[0].trim().intern();
+									String lemma  = fields2[1].trim();
+									String prob = _probabilityThreshold != null ? fields2[2] : null;
 
-	    				// If a pos and lemma is present, return them.
-	    				for (int n = 1; n < fields1.length; n++) {
-							String fields2[] = _probabilityThreshold != null ? RE_WHITESPACE
-									.split(fields1[n]) : RE_TAB.split(fields1[n]);
-		    				try {
-	                            String posTag = fields2[0].trim().intern();
-	                            String lemma  = fields2[1].trim();
-	                            String prob = _probabilityThreshold != null ? fields2[2] : null;
-	
-	                            if (TRACE) {
-	                                System.err.println(" -- POS: [" + posTag + "] -- LEMMA: ["
-	                                        + lemma + "] -- PROBABILITY: [" + prob + "]");
-	                            }
-	                            
-	                            // Notify the handler for the token and the best tag/lemma
-	                            if (_handler != null && n == 1) {
-	                                _handler.token(inToken, posTag, lemma);
-	                            }
-	                            
-	                            // If probabilities are provided and a handler for them is present
-	                            // then notify the probability handler
-	                            if (prob != null && _probabilityHandler != null) {
-	                                _probabilityHandler.probability(posTag, lemma, Double.valueOf(prob));
-	                            }
-	                            else {
-	                            	// If there is no probability handler, then we do not have to
-	                            	// process all the fields.
-	                            	break;
-	                            }
+									if (TRACE) {
+										System.err.println(" -- POS: [" + posTag + "] -- LEMMA: ["
+												+ lemma + "] -- PROBABILITY: [" + prob + "]");
+									}
 
-		    				}
-		    				catch (Throwable e) {
-								throw new TreeTaggerException(
-										"Unable to parse pos/lemma/probability from [" + fields1[n]
-												+ "] in [" + _lastOutRecord + "]", e);
-		    				}
-	    				}
+									// Notify the handler for the token and the best tag/lemma
+									if (_handler != null && n == 1) {
+										_handler.token(inToken, posTag, lemma);
+									}
 
+									// If probabilities are provided and a handler for them is present
+									// then notify the probability handler
+									if (prob != null && _probabilityHandler != null) {
+										_probabilityHandler.probability(posTag, lemma, Double.valueOf(prob));
+									}
+									else {
+										// If there is no probability handler, then we do not have to
+										// process all the fields.
+										break;
+									}
+
+								}
+								catch (Throwable e) {
+									throw new TreeTaggerException(
+											"Unable to parse pos/lemma/probability from [" + fields1[n]
+													+ "] in [" + _lastOutRecord + "]", e);
+								}
+							}
+						}
+						else
+							break;
 	    			}
     		}
     		catch (TreeTaggerException e) {
@@ -1109,10 +1112,11 @@ class TreeTaggerWrapper<O>
     				_lastTokenWritten = token;
     				_tokensWritten++;
     				send(getText(token));
-    			}
-
+				}
 				send(_model.getFlushSequence());
-    		}
+
+
+			}
     		catch (final Throwable e) {
     			_exception = e;
     		}
